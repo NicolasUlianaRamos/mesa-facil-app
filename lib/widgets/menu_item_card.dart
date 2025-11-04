@@ -25,6 +25,7 @@ class MenuItemCard extends StatelessWidget {
       onLongPress: onLongPress,
       borderRadius: BorderRadius.circular(16),
       child: Container(
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -47,7 +48,7 @@ class MenuItemCard extends StatelessWidget {
                   ),
                   child: CachedNetworkImage(
                     imageUrl: item.imageUrl,
-                    height: 120,
+                    height: 110,
                     width: double.infinity,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
@@ -127,6 +128,7 @@ class MenuItemCard extends StatelessWidget {
                         child: ElevatedButton(
                           onPressed: onAdd,
                           style: ElevatedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(36),
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
