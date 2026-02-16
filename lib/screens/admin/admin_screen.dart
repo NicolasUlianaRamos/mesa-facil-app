@@ -24,10 +24,7 @@ class AdminScreen extends StatelessWidget {
           children: [
             const Text(
               'Administração',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
               auth.currentUser?.name ?? '',
@@ -103,9 +100,9 @@ class AdminScreen extends StatelessWidget {
             // Quick actions for Admin
             Text(
               'Ações Rápidas',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             _buildFeatureCard(
@@ -128,9 +125,9 @@ class AdminScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               'Pedidos por Status',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Container(
@@ -311,7 +308,9 @@ class AdminScreen extends StatelessWidget {
     );
   }
 
-  List<PieChartSectionData> _buildPieChartSections(OrderProvider orderProvider) {
+  List<PieChartSectionData> _buildPieChartSections(
+    OrderProvider orderProvider,
+  ) {
     final received = orderProvider.orders
         .where((o) => o.status == OrderStatus.received)
         .length;
@@ -398,9 +397,7 @@ class AdminScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             const Icon(Icons.rocket_launch, color: AppColors.secondary),
@@ -413,10 +410,7 @@ class AdminScreen extends StatelessWidget {
           children: [
             Text(
               feature,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Container(
@@ -427,9 +421,7 @@ class AdminScreen extends StatelessWidget {
               ),
               child: const Text(
                 'Esta funcionalidade está em desenvolvimento e estará disponível em breve!',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -462,8 +454,8 @@ class AdminScreen extends StatelessWidget {
                 child: Text(
                   'Selecione a Mesa',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               Expanded(
@@ -566,8 +558,8 @@ class AdminScreen extends StatelessWidget {
                     Text(
                       'Pedidos Prontos',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Expanded(
@@ -579,7 +571,9 @@ class AdminScreen extends StatelessWidget {
                                   Icon(
                                     Icons.outbox,
                                     size: 48,
-                                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                                    color: AppColors.textSecondary.withValues(
+                                      alpha: 0.5,
+                                    ),
                                   ),
                                   const SizedBox(height: 12),
                                   const Text('Nenhum pedido pronto no momento'),
@@ -595,11 +589,18 @@ class AdminScreen extends StatelessWidget {
                                   order: order,
                                   showDeliverActionWhenFinished: true,
                                   onStatusChange: (newStatus) async {
-                                    await provider.updateOrderStatus(order.id, newStatus);
+                                    await provider.updateOrderStatus(
+                                      order.id,
+                                      newStatus,
+                                    );
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         const SnackBar(
-                                          content: Text('Pedido marcado como entregue'),
+                                          content: Text(
+                                            'Pedido marcado como entregue',
+                                          ),
                                           backgroundColor: AppColors.success,
                                         ),
                                       );

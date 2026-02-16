@@ -11,16 +11,18 @@ class ReadyOrdersScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final orderProvider = context.watch<OrderProvider>();
-    final ready = orderProvider.orders
-        .where((o) => o.status == OrderStatus.finished)
-        .toList()
-      ..sort((a, b) => (a.finishedAt ?? a.createdAt)
-          .compareTo(b.finishedAt ?? b.createdAt));
+    final ready =
+        orderProvider.orders
+            .where((o) => o.status == OrderStatus.finished)
+            .toList()
+          ..sort(
+            (a, b) => (a.finishedAt ?? a.createdAt).compareTo(
+              b.finishedAt ?? b.createdAt,
+            ),
+          );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pedidos Prontos'),
-      ),
+      appBar: AppBar(title: const Text('Pedidos Prontos')),
       body: ready.isEmpty
           ? Center(
               child: Column(
@@ -28,8 +30,10 @@ class ReadyOrdersScreen extends StatelessWidget {
                 children: const [
                   Icon(Icons.outbox, size: 64, color: AppColors.textSecondary),
                   SizedBox(height: 12),
-                  Text('Nenhum pedido pronto no momento',
-                      style: TextStyle(color: AppColors.textSecondary)),
+                  Text(
+                    'Nenhum pedido pronto no momento',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                 ],
               ),
             )

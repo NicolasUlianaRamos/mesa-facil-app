@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/order.dart';
 import '../models/table_model.dart';
+import '../models/comanda.dart';
 import '../services/storage_service.dart';
 import '../utils/constants.dart';
 
@@ -17,7 +18,9 @@ class OrderProvider with ChangeNotifier {
   List<TableModel> get tables => _tables;
 
   List<Order> get activeOrders {
-    return _orders.where((order) => order.status != OrderStatus.delivered).toList();
+    return _orders
+        .where((order) => order.status != OrderStatus.delivered)
+        .toList();
   }
 
   List<Order> getOrdersByTable(int tableNumber) {
@@ -30,7 +33,8 @@ class OrderProvider with ChangeNotifier {
     return _orders.where((order) {
       if (order.tableNumber != tableNumber) return false;
       if (since == null) return true; // fallback if not set
-      return order.createdAt.isAtSameMomentAs(since) || order.createdAt.isAfter(since);
+      return order.createdAt.isAtSameMomentAs(since) ||
+          order.createdAt.isAfter(since);
     }).toList();
   }
 
@@ -60,16 +64,16 @@ class OrderProvider with ChangeNotifier {
 
   Future<void> addOrder(Order order) async {
     await StorageService.saveOrder(order);
-    
+
     final table = getTable(order.tableNumber);
     if (table != null) {
       table.status = TableStatus.occupied;
       table.currentOrderId = order.id;
-  // Start a new occupancy window at the time of the first order
-  table.occupiedSince ??= order.createdAt;
+      // Start a new occupancy window at the time of the first order
+      table.occupiedSince ??= order.createdAt;
       await StorageService.saveTable(table);
     }
-    
+
     _loadData();
     notifyListeners();
   }
@@ -100,7 +104,10 @@ class OrderProvider with ChangeNotifier {
   Future<void> finalizeCustomerAtTable(int tableNumber) async {
     // Mark all orders from this table as delivered
     final tableOrders = _orders
-        .where((o) => o.tableNumber == tableNumber && o.status != OrderStatus.delivered)
+        .where(
+          (o) =>
+              o.tableNumber == tableNumber && o.status != OrderStatus.delivered,
+        )
         .toList();
     for (final o in tableOrders) {
       o.status = OrderStatus.delivered;
@@ -108,13 +115,97 @@ class OrderProvider with ChangeNotifier {
       await StorageService.saveOrder(o);
     }
 
-    // Free the table
+    // Free the table and clear comandas
     final table = getTable(tableNumber);
     if (table != null) {
       table.status = TableStatus.available;
       table.currentOrderId = null;
       table.currentTotal = 0.0;
       table.occupiedSince = null;
+      table.comandas.clear();
+      await StorageService.saveTable(table);
+    }
+
+    _loadData();
+    notifyListeners();
+  }
+
+  Future<void> addComandaToTable(int tableNumber, Comanda comanda) async {
+    final table = getTable(tableNumber);
+    if (table != null) {
+      table.comandas.add(comanda);
+      await StorageService.saveTable(table);
+      _loadData();
+      notifyListeners();
+    }
+  }
+
+  Future<void> occupyTableWithComandas(
+    int tableNumber,
+    List<Comanda> comandas,
+  ) async {
+    final table = getTable(tableNumber);
+    if (table != null) {
+      table.status = TableStatus.occupied;
+      table.occupiedSince = DateTime.now();
+      table.comandas = comandas;
+      await StorageService.saveTable(table);
+      _loadData();
+      notifyListeners();
+    }
+  }
+
+  List<Comanda> getComandasForTable(int tableNumber) {
+    final table = getTable(tableNumber);
+    return table?.comandas ?? [];
+  }
+
+  List<Order> getOrdersByComanda(String comandaId) {
+    return _orders.where((order) => order.comandaId == comandaId).toList();
+  }
+
+  double getComandaTotal(String comandaId) {
+    return getOrdersByComanda(
+      comandaId,
+    ).fold(0.0, (sum, order) => sum + order.total);
+  }
+
+  String getComandaName(String? comandaId) {
+    if (comandaId == null) return '';
+    for (final table in _tables) {
+      for (final comanda in table.comandas) {
+        if (comanda.id == comandaId) return comanda.name;
+      }
+    }
+    return '';
+  }
+
+  Future<void> finalizeComanda(int tableNumber, String comandaId) async {
+    // Mark all orders of this comanda as delivered
+    final comandaOrders = _orders
+        .where(
+          (o) => o.comandaId == comandaId && o.status != OrderStatus.delivered,
+        )
+        .toList();
+    for (final o in comandaOrders) {
+      o.status = OrderStatus.delivered;
+      o.deliveredAt = DateTime.now();
+      await StorageService.saveOrder(o);
+    }
+
+    // Remove this comanda from the table
+    final table = getTable(tableNumber);
+    if (table != null) {
+      table.comandas.removeWhere((c) => c.id == comandaId);
+
+      // If no more comandas, free the table
+      if (table.comandas.isEmpty) {
+        table.status = TableStatus.available;
+        table.currentOrderId = null;
+        table.currentTotal = 0.0;
+        table.occupiedSince = null;
+      }
+
       await StorageService.saveTable(table);
     }
 
@@ -126,13 +217,13 @@ class OrderProvider with ChangeNotifier {
     final table = getTable(tableNumber);
     if (table != null) {
       table.status = newStatus;
-      
+
       if (newStatus == TableStatus.available) {
         table.currentOrderId = null;
         table.currentTotal = 0.0;
         table.occupiedSince = null;
       }
-      
+
       await StorageService.saveTable(table);
       _loadData();
       notifyListeners();

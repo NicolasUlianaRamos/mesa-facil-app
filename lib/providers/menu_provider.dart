@@ -33,7 +33,8 @@ class MenuProvider with ChangeNotifier {
           name: 'Pizza Margherita',
           description: 'Molho de tomate, mussarela e manjericão fresco',
           price: 45.90,
-          imageUrl: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?q=80&w=800&auto=format&fit=crop',
+          imageUrl:
+              'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?q=80&w=800&auto=format&fit=crop',
           category: 'Pizzas',
         ),
         MenuItem(
@@ -41,7 +42,8 @@ class MenuProvider with ChangeNotifier {
           name: 'Pizza Calabresa',
           description: 'Calabresa, mussarela, cebola e orégano',
           price: 48.90,
-          imageUrl: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?q=80&w=800&auto=format&fit=crop',
+          imageUrl:
+              'https://images.unsplash.com/photo-1628840042765-356cda07504e?q=80&w=800&auto=format&fit=crop',
           category: 'Pizzas',
         ),
         MenuItem(
@@ -49,7 +51,8 @@ class MenuProvider with ChangeNotifier {
           name: 'Pizza Portuguesa',
           description: 'Presunto, ovos, cebola, azeitona e mussarela',
           price: 52.90,
-          imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=800&auto=format&fit=crop',
+          imageUrl:
+              'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=800&auto=format&fit=crop',
           category: 'Pizzas',
         ),
         MenuItem(
@@ -57,7 +60,8 @@ class MenuProvider with ChangeNotifier {
           name: 'Coca-Cola 2L',
           description: 'Refrigerante Coca-Cola 2 litros',
           price: 12.90,
-          imageUrl: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?q=80&w=800&auto=format&fit=crop',
+          imageUrl:
+              'https://images.unsplash.com/photo-1554866585-cd94860890b7?q=80&w=800&auto=format&fit=crop',
           category: 'Bebidas',
         ),
         MenuItem(
@@ -65,7 +69,8 @@ class MenuProvider with ChangeNotifier {
           name: 'Guaraná Antarctica 2L',
           description: 'Refrigerante Guaraná 2 litros',
           price: 11.90,
-          imageUrl: 'https://images.unsplash.com/photo-1581006852262-e4307cf6283a?q=80&w=800&auto=format&fit=crop',
+          imageUrl:
+              'https://images.unsplash.com/photo-1581006852262-e4307cf6283a?q=80&w=800&auto=format&fit=crop',
           category: 'Bebidas',
         ),
         MenuItem(
@@ -73,7 +78,8 @@ class MenuProvider with ChangeNotifier {
           name: 'Suco Natural Laranja',
           description: 'Suco de laranja natural 500ml',
           price: 8.90,
-          imageUrl: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?q=80&w=800&auto=format&fit=crop',
+          imageUrl:
+              'https://images.unsplash.com/photo-1600271886742-f049cd451bba?q=80&w=800&auto=format&fit=crop',
           category: 'Bebidas',
         ),
         MenuItem(
@@ -81,7 +87,8 @@ class MenuProvider with ChangeNotifier {
           name: 'Pudim de Leite',
           description: 'Tradicional pudim de leite condensado',
           price: 15.90,
-          imageUrl: 'https://images.unsplash.com/photo-1624353365286-3f8d62daad51?q=80&w=800&auto=format&fit=crop',
+          imageUrl:
+              'https://images.unsplash.com/photo-1624353365286-3f8d62daad51?q=80&w=800&auto=format&fit=crop',
           category: 'Sobremesas',
         ),
         MenuItem(
@@ -89,7 +96,8 @@ class MenuProvider with ChangeNotifier {
           name: 'Brownie com Sorvete',
           description: 'Brownie de chocolate com sorvete de baunilha',
           price: 18.90,
-          imageUrl: 'https://images.unsplash.com/photo-1607920591413-4ec007e70023?q=80&w=800&auto=format&fit=crop',
+          imageUrl:
+              'https://images.unsplash.com/photo-1607920591413-4ec007e70023?q=80&w=800&auto=format&fit=crop',
           category: 'Sobremesas',
         ),
         MenuItem(
@@ -97,7 +105,8 @@ class MenuProvider with ChangeNotifier {
           name: 'Salada Caesar',
           description: 'Alface, croutons, parmesão e molho caesar',
           price: 28.90,
-          imageUrl: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?q=80&w=800&auto=format&fit=crop',
+          imageUrl:
+              'https://images.unsplash.com/photo-1546793665-c74683f339c1?q=80&w=800&auto=format&fit=crop',
           category: 'Saladas',
         ),
         MenuItem(
@@ -105,7 +114,8 @@ class MenuProvider with ChangeNotifier {
           name: 'Hambúrguer Artesanal',
           description: 'Pão artesanal, hambúrguer 180g, queijo e salada',
           price: 35.90,
-          imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=800&auto=format&fit=crop',
+          imageUrl:
+              'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=800&auto=format&fit=crop',
           category: 'Lanches',
         ),
       ];
