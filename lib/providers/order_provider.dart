@@ -2,12 +2,14 @@ import 'package:flutter/foundation.dart';
 import '../models/order.dart';
 import '../models/table_model.dart';
 import '../models/comanda.dart';
+import '../models/table_finalization_event.dart';
 import '../services/storage_service.dart';
 import '../utils/constants.dart';
 
 class OrderProvider with ChangeNotifier {
   List<Order> _orders = [];
   List<TableModel> _tables = [];
+  List<TableFinalizationEvent> _tableFinalizations = [];
 
   OrderProvider() {
     _loadData();
@@ -16,6 +18,8 @@ class OrderProvider with ChangeNotifier {
 
   List<Order> get orders => _orders;
   List<TableModel> get tables => _tables;
+  List<TableFinalizationEvent> get tableFinalizationHistory =>
+      List.unmodifiable(_tableFinalizations);
 
   List<Order> get activeOrders {
     return _orders
@@ -49,6 +53,17 @@ class OrderProvider with ChangeNotifier {
   void _loadData() {
     _orders = StorageService.getOrders();
     _tables = StorageService.getTables();
+    _tableFinalizations = StorageService.getTableFinalizationEvents();
+  }
+
+  Future<void> _recordTableFinalization(int tableNumber) async {
+    final now = DateTime.now();
+    final event = TableFinalizationEvent(
+      id: 'table_${tableNumber}_${now.microsecondsSinceEpoch}',
+      tableNumber: tableNumber,
+      finalizedAt: now,
+    );
+    await StorageService.saveTableFinalizationEvent(event);
   }
 
   Future<void> _initializeTables() async {
@@ -125,6 +140,8 @@ class OrderProvider with ChangeNotifier {
       table.comandas.clear();
       await StorageService.saveTable(table);
     }
+
+    await _recordTableFinalization(tableNumber);
 
     _loadData();
     notifyListeners();
@@ -204,6 +221,8 @@ class OrderProvider with ChangeNotifier {
         table.currentOrderId = null;
         table.currentTotal = 0.0;
         table.occupiedSince = null;
+
+        await _recordTableFinalization(tableNumber);
       }
 
       await StorageService.saveTable(table);

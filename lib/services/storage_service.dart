@@ -4,6 +4,7 @@ import '../models/menu_item.dart';
 import '../models/table_model.dart';
 import '../models/user.dart';
 import '../models/message.dart';
+import '../models/table_finalization_event.dart';
 
 class StorageService {
   static const String _ordersBox = 'orders';
@@ -11,6 +12,7 @@ class StorageService {
   static const String _tablesBox = 'tables';
   static const String _usersBox = 'users';
   static const String _messagesBox = 'messages';
+  static const String _tableFinalizationsBox = 'table_finalizations';
 
   static Future<void> init() async {
     await Hive.openBox(_ordersBox);
@@ -18,6 +20,7 @@ class StorageService {
     await Hive.openBox(_tablesBox);
     await Hive.openBox(_usersBox);
     await Hive.openBox(_messagesBox);
+    await Hive.openBox(_tableFinalizationsBox);
   }
 
   static Box get _orders => Hive.box(_ordersBox);
@@ -25,6 +28,7 @@ class StorageService {
   static Box get _tables => Hive.box(_tablesBox);
   static Box get _users => Hive.box(_usersBox);
   static Box get _messages => Hive.box(_messagesBox);
+  static Box get _tableFinalizations => Hive.box(_tableFinalizationsBox);
 
   // Orders
   static Future<void> saveOrder(Order order) async {
@@ -100,11 +104,28 @@ class StorageService {
     }).toList();
   }
 
+  // Table finalization history
+  static Future<void> saveTableFinalizationEvent(
+    TableFinalizationEvent event,
+  ) async {
+    await _tableFinalizations.put(event.id, event.toJson());
+  }
+
+  static List<TableFinalizationEvent> getTableFinalizationEvents() {
+    return _tableFinalizations.values.map((json) {
+      final map = (json as Map).map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      return TableFinalizationEvent.fromJson(map);
+    }).toList();
+  }
+
   static Future<void> clearAll() async {
     await _orders.clear();
     await _menu.clear();
     await _tables.clear();
     await _users.clear();
     await _messages.clear();
+    await _tableFinalizations.clear();
   }
 }
