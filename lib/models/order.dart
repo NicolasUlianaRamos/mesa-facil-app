@@ -4,6 +4,7 @@ import 'order_item.dart';
 class Order {
   final String id;
   final int tableNumber;
+  final String? comandaId;
   final List<OrderItem> items;
   OrderStatus status;
   final String waiterId;
@@ -18,6 +19,7 @@ class Order {
   Order({
     required this.id,
     required this.tableNumber,
+    this.comandaId,
     required this.items,
     this.status = OrderStatus.received,
     required this.waiterId,
@@ -38,6 +40,7 @@ class Order {
     return {
       'id': id,
       'tableNumber': tableNumber,
+      'comandaId': comandaId,
       'items': items.map((item) => item.toJson()).toList(),
       'status': status.toString(),
       'waiterId': waiterId,
@@ -55,12 +58,11 @@ class Order {
     return Order(
       id: json['id'] as String,
       tableNumber: json['tableNumber'] as int,
-      items: (json['items'] as List)
-          .map((item) {
-            final m = (item as Map).map((k, v) => MapEntry(k.toString(), v));
-            return OrderItem.fromJson(m);
-          })
-          .toList(),
+      comandaId: json['comandaId'] as String?,
+      items: (json['items'] as List).map((item) {
+        final m = (item as Map).map((k, v) => MapEntry(k.toString(), v));
+        return OrderItem.fromJson(m);
+      }).toList(),
       status: OrderStatus.values.firstWhere(
         (e) => e.toString() == json['status'],
         orElse: () => OrderStatus.received,

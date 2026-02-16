@@ -4,6 +4,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../models/comanda.dart';
+import '../../models/table_model.dart';
 import '../../utils/constants.dart';
 import '../../widgets/table_card.dart';
 import '../../widgets/chat_widget.dart';
@@ -35,10 +37,7 @@ class _WaiterHomeScreenState extends State<WaiterHomeScreen> {
           children: [
             const Text(
               'Mesa Fácil',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
               'Garçom: ${auth.currentUser?.name}',
@@ -102,9 +101,7 @@ class _WaiterHomeScreenState extends State<WaiterHomeScreen> {
               ? _buildTablesView(orderProvider)
               : _buildReadyOrdersView(orderProvider),
           if (_showChat)
-            ChatWidget(
-              onClose: () => setState(() => _showChat = false),
-            ),
+            ChatWidget(onClose: () => setState(() => _showChat = false)),
         ],
       ),
       floatingActionButton: _currentIndex == 0
@@ -166,14 +163,8 @@ class _WaiterHomeScreenState extends State<WaiterHomeScreen> {
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.table_bar),
-            label: 'Mesas',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.outbox),
-            label: 'Prontos',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.table_bar), label: 'Mesas'),
+          BottomNavigationBarItem(icon: Icon(Icons.outbox), label: 'Prontos'),
         ],
       ),
     );
@@ -223,22 +214,29 @@ class _WaiterHomeScreenState extends State<WaiterHomeScreen> {
             itemBuilder: (context, index) {
               final table = orderProvider.tables[index];
               return TableCard(
-                table: table,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TableOrderScreen(table: table),
-                    ),
+                    table: table,
+                    onTap: () async {
+                      if (table.status == TableStatus.available) {
+                        // Show comandas setup dialog
+                        await _showComandasDialog(context, table);
+                      } else {
+                        // Go directly to table orders
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                TableOrderScreen(table: table),
+                          ),
+                        );
+                      }
+                    },
+                  )
+                  .animate()
+                  .fadeIn(delay: (index * 50).ms, duration: 300.ms)
+                  .scale(
+                    begin: const Offset(0.8, 0.8),
+                    end: const Offset(1.0, 1.0),
                   );
-                },
-              ).animate().fadeIn(
-                delay: (index * 50).ms,
-                duration: 300.ms,
-              ).scale(
-                begin: const Offset(0.8, 0.8),
-                end: const Offset(1.0, 1.0),
-              );
             },
           ),
         ),
@@ -247,11 +245,15 @@ class _WaiterHomeScreenState extends State<WaiterHomeScreen> {
   }
 
   Widget _buildReadyOrdersView(OrderProvider orderProvider) {
-    final ready = orderProvider.orders
-        .where((o) => o.status == OrderStatus.finished)
-        .toList()
-      ..sort((a, b) => (a.finishedAt ?? a.createdAt)
-          .compareTo(b.finishedAt ?? b.createdAt));
+    final ready =
+        orderProvider.orders
+            .where((o) => o.status == OrderStatus.finished)
+            .toList()
+          ..sort(
+            (a, b) => (a.finishedAt ?? a.createdAt).compareTo(
+              b.finishedAt ?? b.createdAt,
+            ),
+          );
 
     if (ready.isEmpty) {
       return Center(
@@ -260,8 +262,10 @@ class _WaiterHomeScreenState extends State<WaiterHomeScreen> {
           children: const [
             Icon(Icons.outbox, size: 64, color: AppColors.textSecondary),
             SizedBox(height: 12),
-            Text('Nenhum pedido pronto no momento',
-                style: TextStyle(color: AppColors.textSecondary)),
+            Text(
+              'Nenhum pedido pronto no momento',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ],
         ),
       );
@@ -272,26 +276,59 @@ class _WaiterHomeScreenState extends State<WaiterHomeScreen> {
       itemCount: ready.length,
       itemBuilder: (context, index) {
         final order = ready[index];
-        return OrderCard(
-          order: order,
-          showDeliverActionWhenFinished: true,
-          onStatusChange: (newStatus) async {
-            await orderProvider.updateOrderStatus(order.id, newStatus);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Pedido marcado como entregue!'),
-                  backgroundColor: AppColors.success,
+        final comandaName = orderProvider.getComandaName(order.comandaId);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (comandaName.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 4),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.receipt,
+                      size: 16,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      comandaName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            }
-          },
+              ),
+            OrderCard(
+              order: order,
+              showDeliverActionWhenFinished: true,
+              onStatusChange: (newStatus) async {
+                await orderProvider.updateOrderStatus(order.id, newStatus);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Pedido marcado como entregue!'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -332,6 +369,163 @@ class _WaiterHomeScreenState extends State<WaiterHomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showComandasDialog(
+    BuildContext outerContext,
+    TableModel table,
+  ) async {
+    final List<Comanda>? comandas = await showDialog<List<Comanda>>(
+      context: outerContext,
+      builder: (_) => _ComandasDialog(table: table),
+    );
+
+    if (comandas != null && outerContext.mounted) {
+      final orderProvider = outerContext.read<OrderProvider>();
+      await orderProvider.occupyTableWithComandas(table.number, comandas);
+
+      if (outerContext.mounted) {
+        final updatedTable = orderProvider.getTable(table.number);
+        if (updatedTable != null) {
+          Navigator.push(
+            outerContext,
+            MaterialPageRoute(
+              builder: (context) => TableOrderScreen(table: updatedTable),
+            ),
+          );
+        }
+      }
+    }
+  }
+}
+
+class _ComandasDialog extends StatefulWidget {
+  final TableModel table;
+  const _ComandasDialog({required this.table});
+
+  @override
+  State<_ComandasDialog> createState() => _ComandasDialogState();
+}
+
+class _ComandasDialogState extends State<_ComandasDialog> {
+  int numComandas = 1;
+  late List<TextEditingController> controllers;
+
+  @override
+  void initState() {
+    super.initState();
+    controllers = [TextEditingController()];
+  }
+
+  @override
+  void dispose() {
+    for (final c in controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text('Ocupar Mesa ${widget.table.number}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Quantas comandas serão usadas?',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: numComandas > 1
+                      ? () {
+                          setState(() {
+                            numComandas--;
+                            controllers.removeLast();
+                          });
+                        }
+                      : null,
+                ),
+                Text(
+                  '$numComandas',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: numComandas < 10
+                      ? () {
+                          setState(() {
+                            numComandas++;
+                            controllers.add(TextEditingController());
+                          });
+                        }
+                      : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Nome das comandas:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            ...List.generate(
+              numComandas,
+              (index) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TextField(
+                  controller: controllers[index],
+                  decoration: InputDecoration(
+                    labelText: 'Comanda ${index + 1}',
+                    hintText: 'Ex: João, Maria, Comanda 1...',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.receipt),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final comandas = controllers
+                .asMap()
+                .entries
+                .map(
+                  (entry) => Comanda(
+                    id: '${widget.table.number}-comanda-${entry.key + 1}-${DateTime.now().millisecondsSinceEpoch}',
+                    tableNumber: widget.table.number,
+                    name: entry.value.text.trim().isEmpty
+                        ? 'Comanda ${entry.key + 1}'
+                        : entry.value.text.trim(),
+                    createdAt: DateTime.now(),
+                  ),
+                )
+                .toList();
+            Navigator.pop(context, comandas);
+          },
+          child: const Text('Ocupar Mesa'),
+        ),
+      ],
     );
   }
 }

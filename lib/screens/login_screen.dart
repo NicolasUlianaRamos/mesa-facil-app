@@ -58,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-  // final size = MediaQuery.of(context).size; // not used
+    // final size = MediaQuery.of(context).size; // not used
 
     return Scaffold(
       body: Container(
@@ -68,10 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppColors.primary,
-              AppColors.accent,
-            ],
+            colors: [AppColors.primary, AppColors.accent],
           ),
         ),
         child: SafeArea(
@@ -108,20 +105,27 @@ class _LoginScreenState extends State<LoginScreen> {
                           size: 64,
                           color: AppColors.primary,
                         ),
-                      ).animate().scale(duration: 600.ms, curve: Curves.elasticOut),
-                      
+                      ).animate().scale(
+                        duration: 600.ms,
+                        curve: Curves.elasticOut,
+                      ),
+
                       const SizedBox(height: 24),
-                      
+
                       Text(
-                        'Mesa Fácil',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.3, end: 0),
-                      
+                            'Mesa Fácil',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                          )
+                          .animate()
+                          .fadeIn(duration: 400.ms)
+                          .slideY(begin: -0.3, end: 0),
+
                       const SizedBox(height: 8),
-                      
+
                       Text(
                         'Sistema de Gestão de Restaurante',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -129,91 +133,107 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
-                      
+
                       const SizedBox(height: 32),
-                      
+
                       TextFormField(
-                        controller: _usernameController,
-                        decoration: InputDecoration(
-                          labelText: 'Usuário',
-                          prefixIcon: const Icon(Icons.person_outline),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          filled: true,
-                          fillColor: AppColors.background,
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Digite seu usuário';
-                          }
-                          return null;
-                        },
-                      ).animate().fadeIn(delay: 300.ms, duration: 400.ms).slideX(begin: -0.2, end: 0),
-                      
-                      const SizedBox(height: 16),
-                      
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Senha',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                            controller: _usernameController,
+                            decoration: InputDecoration(
+                              labelText: 'Usuário',
+                              prefixIcon: const Icon(Icons.person_outline),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              filled: true,
+                              fillColor: AppColors.background,
                             ),
-                            onPressed: () {
-                              setState(() => _obscurePassword = !_obscurePassword);
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Digite seu usuário';
+                              }
+                              return null;
                             },
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          filled: true,
-                          fillColor: AppColors.background,
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Digite sua senha';
-                          }
-                          return null;
-                        },
-                      ).animate().fadeIn(delay: 400.ms, duration: 400.ms).slideX(begin: -0.2, end: 0),
-                      
-                      const SizedBox(height: 32),
-                      
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Text(
-                                  'Entrar',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          )
+                          .animate()
+                          .fadeIn(delay: 300.ms, duration: 400.ms)
+                          .slideX(begin: -0.2, end: 0),
+
+                      const SizedBox(height: 16),
+
+                      TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
+                              labelText: 'Senha',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
                                 ),
-                        ),
-                      ).animate().fadeIn(delay: 500.ms, duration: 400.ms).slideY(begin: 0.2, end: 0),
-                      
+                                onPressed: () {
+                                  setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  );
+                                },
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              filled: true,
+                              fillColor: AppColors.background,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Digite sua senha';
+                              }
+                              return null;
+                            },
+                          )
+                          .animate()
+                          .fadeIn(delay: 400.ms, duration: 400.ms)
+                          .slideX(begin: -0.2, end: 0),
+
+                      const SizedBox(height: 32),
+
+                      SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _login,
+                              style: ElevatedButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Entrar',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          )
+                          .animate()
+                          .fadeIn(delay: 500.ms, duration: 400.ms)
+                          .slideY(begin: 0.2, end: 0),
+
                       const SizedBox(height: 24),
-                      
+
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -233,10 +253,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 const SizedBox(width: 8),
                                 Text(
                                   'Usuários de Demonstração',
-                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.info,
-                                  ),
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.info,
+                                      ),
                                 ),
                               ],
                             ),
@@ -263,10 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
       padding: const EdgeInsets.only(bottom: 4),
       child: Text(
         '• $role: $credentials',
-        style: const TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 13,
-        ),
+        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
       ),
     );
   }

@@ -24,7 +24,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
     final auth = context.watch<AuthProvider>();
     final orderProvider = context.watch<OrderProvider>();
     final chatProvider = context.watch<ChatProvider>();
-    
+
     final filteredOrders = orderProvider.activeOrders
         .where((order) => order.status == _selectedStatus)
         .toList();
@@ -36,10 +36,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
           children: [
             const Text(
               'Cozinha',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
               auth.currentUser?.name ?? '',
@@ -165,14 +162,18 @@ class _KitchenScreenState extends State<KitchenScreen> {
                             Icon(
                               OrderStatusHelper.getIcon(_selectedStatus),
                               size: 64,
-                              color: AppColors.textSecondary.withValues(alpha: 0.5),
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.5,
+                              ),
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'Nenhum pedido ${OrderStatusHelper.getLabel(_selectedStatus).toLowerCase()}',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: AppColors.textSecondary.withValues(alpha: 0.7),
+                                color: AppColors.textSecondary.withValues(
+                                  alpha: 0.7,
+                                ),
                               ),
                             ),
                           ],
@@ -184,26 +185,24 @@ class _KitchenScreenState extends State<KitchenScreen> {
                         itemBuilder: (context, index) {
                           final order = filteredOrders[index];
                           return OrderCard(
-                            order: order,
-                            onStatusChange: (newStatus) {
-                              orderProvider.updateOrderStatus(order.id, newStatus);
-                            },
-                          ).animate().fadeIn(
-                            delay: (index * 50).ms,
-                            duration: 300.ms,
-                          ).slideX(
-                            begin: -0.2,
-                            end: 0,
-                          );
+                                order: order,
+                                onStatusChange: (newStatus) {
+                                  orderProvider.updateOrderStatus(
+                                    order.id,
+                                    newStatus,
+                                  );
+                                },
+                              )
+                              .animate()
+                              .fadeIn(delay: (index * 50).ms, duration: 300.ms)
+                              .slideX(begin: -0.2, end: 0);
                         },
                       ),
               ),
             ],
           ),
           if (_showChat)
-            ChatWidget(
-              onClose: () => setState(() => _showChat = false),
-            ),
+            ChatWidget(onClose: () => setState(() => _showChat = false)),
         ],
       ),
     );

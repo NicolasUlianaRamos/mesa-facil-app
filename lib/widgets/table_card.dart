@@ -6,11 +6,7 @@ class TableCard extends StatelessWidget {
   final TableModel table;
   final VoidCallback onTap;
 
-  const TableCard({
-    super.key,
-    required this.table,
-    required this.onTap,
-  });
+  const TableCard({super.key, required this.table, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -24,13 +20,13 @@ class TableCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: statusColor.withValues(alpha: 0.3),
+          border: Border.all(
+            color: statusColor.withValues(alpha: 0.3),
             width: 2,
           ),
           boxShadow: [
-                BoxShadow(
-                  color: statusColor.withValues(alpha: 0.1),
+            BoxShadow(
+              color: statusColor.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -42,14 +38,10 @@ class TableCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
+                color: statusColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.table_bar,
-                size: 32,
-                color: statusColor,
-              ),
+              child: Icon(Icons.table_bar, size: 32, color: statusColor),
             ),
             const SizedBox(height: 12),
             Text(

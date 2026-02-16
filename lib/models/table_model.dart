@@ -1,4 +1,5 @@
 import '../utils/constants.dart';
+import 'comanda.dart';
 
 class TableModel {
   final int number;
@@ -6,6 +7,7 @@ class TableModel {
   String? currentOrderId;
   double currentTotal;
   DateTime? occupiedSince;
+  List<Comanda> comandas;
 
   TableModel({
     required this.number,
@@ -13,7 +15,8 @@ class TableModel {
     this.currentOrderId,
     this.currentTotal = 0.0,
     this.occupiedSince,
-  });
+    List<Comanda>? comandas,
+  }) : comandas = comandas ?? [];
 
   Map<String, dynamic> toJson() {
     return {
@@ -22,6 +25,7 @@ class TableModel {
       'currentOrderId': currentOrderId,
       'currentTotal': currentTotal,
       'occupiedSince': occupiedSince?.toIso8601String(),
+      'comandas': comandas.map((c) => c.toJson()).toList(),
     };
   }
 
@@ -37,6 +41,12 @@ class TableModel {
       occupiedSince: json['occupiedSince'] != null
           ? DateTime.parse(json['occupiedSince'] as String)
           : null,
+      comandas: json['comandas'] != null
+          ? (json['comandas'] as List).map((c) {
+              final m = (c as Map).map((k, v) => MapEntry(k.toString(), v));
+              return Comanda.fromJson(m);
+            }).toList()
+          : [],
     );
   }
 }

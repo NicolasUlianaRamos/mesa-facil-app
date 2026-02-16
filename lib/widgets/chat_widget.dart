@@ -10,10 +10,7 @@ import '../utils/constants.dart';
 class ChatWidget extends StatefulWidget {
   final VoidCallback onClose;
 
-  const ChatWidget({
-    super.key,
-    required this.onClose,
-  });
+  const ChatWidget({super.key, required this.onClose});
 
   @override
   State<ChatWidget> createState() => _ChatWidgetState();
@@ -82,9 +79,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                 padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 ),
                 child: Row(
                   children: [
@@ -118,9 +113,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                     ? const Center(
                         child: Text(
                           'Nenhuma mensagem ainda',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                          ),
+                          style: TextStyle(color: AppColors.textSecondary),
                         ),
                       )
                     : ListView.builder(
@@ -155,8 +148,10 @@ class _ChatWidgetState extends State<ChatWidget> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                    color: isMe
-                      ? Colors.white.withValues(alpha: 0.8)
+                                        color: isMe
+                                            ? Colors.white.withValues(
+                                                alpha: 0.8,
+                                              )
                                             : AppColors.primary,
                                       ),
                                     ),
@@ -172,11 +167,13 @@ class _ChatWidgetState extends State<ChatWidget> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    DateFormat('HH:mm').format(message.timestamp),
+                                    DateFormat(
+                                      'HH:mm',
+                                    ).format(message.timestamp),
                                     style: TextStyle(
                                       fontSize: 10,
-                    color: isMe
-                      ? Colors.white.withValues(alpha: 0.7)
+                                      color: isMe
+                                          ? Colors.white.withValues(alpha: 0.7)
                                           : AppColors.textSecondary,
                                     ),
                                   ),

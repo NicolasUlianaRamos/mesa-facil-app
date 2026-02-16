@@ -10,30 +10,17 @@ class AppColors {
   static const warning = Color(0xFFFF9800);
   static const error = Color(0xFFF44336);
   static const info = Color(0xFF2196F3);
-  
+
   static const textPrimary = Color(0xFF212121);
   static const textSecondary = Color(0xFF757575);
   static const textLight = Colors.white;
 }
 
-enum OrderStatus {
-  received,
-  preparing,
-  finished,
-  delivered,
-}
+enum OrderStatus { received, preparing, finished, delivered }
 
-enum TableStatus {
-  available,
-  occupied,
-  needsBill,
-}
+enum TableStatus { available, occupied, needsBill }
 
-enum UserRole {
-  waiter,
-  kitchen,
-  admin,
-}
+enum UserRole { waiter, kitchen, admin }
 
 class OrderStatusHelper {
   static String getLabel(OrderStatus status) {

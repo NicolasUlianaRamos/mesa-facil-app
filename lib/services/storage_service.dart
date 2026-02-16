@@ -37,7 +37,9 @@ class StorageService {
 
   static List<Order> getOrders() {
     return _orders.values.map((json) {
-      final map = (json as Map).map((key, value) => MapEntry(key.toString(), value));
+      final map = (json as Map).map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
       return Order.fromJson(map);
     }).toList();
   }
@@ -49,7 +51,9 @@ class StorageService {
 
   static List<MenuItem> getMenuItems() {
     return _menu.values.map((json) {
-      final map = (json as Map).map((key, value) => MapEntry(key.toString(), value));
+      final map = (json as Map).map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
       return MenuItem.fromJson(map);
     }).toList();
   }
@@ -61,7 +65,9 @@ class StorageService {
 
   static List<TableModel> getTables() {
     return _tables.values.map((json) {
-      final map = (json as Map).map((key, value) => MapEntry(key.toString(), value));
+      final map = (json as Map).map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
       return TableModel.fromJson(map);
     }).toList();
   }
@@ -73,7 +79,9 @@ class StorageService {
 
   static List<User> getUsers() {
     return _users.values.map((json) {
-      final map = (json as Map).map((key, value) => MapEntry(key.toString(), value));
+      final map = (json as Map).map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
       return User.fromJson(map);
     }).toList();
   }
@@ -85,7 +93,9 @@ class StorageService {
 
   static List<Message> getMessages() {
     return _messages.values.map((json) {
-      final map = (json as Map).map((key, value) => MapEntry(key.toString(), value));
+      final map = (json as Map).map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
       return Message.fromJson(map);
     }).toList();
   }
