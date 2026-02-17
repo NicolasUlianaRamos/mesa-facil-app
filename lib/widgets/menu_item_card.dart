@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../models/menu_item.dart';
 import '../utils/constants.dart';
+import 'menu_item_image.dart';
 
 class MenuItemCard extends StatelessWidget {
   final MenuItem item;
@@ -46,16 +46,16 @@ class MenuItemCard extends StatelessWidget {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(16),
                   ),
-                  child: CachedNetworkImage(
+                  child: MenuItemImage(
                     imageUrl: item.imageUrl,
                     height: 110,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
+                    placeholder: Container(
                       color: AppColors.background,
                       child: const Center(child: CircularProgressIndicator()),
                     ),
-                    errorWidget: (context, url, error) => Container(
+                    errorWidget: Container(
                       color: AppColors.background,
                       child: const Icon(
                         Icons.restaurant,
