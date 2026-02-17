@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/menu_provider.dart';
+import '../../models/comanda.dart';
+import '../../models/table_model.dart';
 import '../../utils/constants.dart';
 import '../waiter/table_order_screen.dart';
 import '../../widgets/order_card.dart';
+import '../../models/menu_item.dart';
+import '../../services/image_storage_service.dart';
+import '../../widgets/menu_item_image.dart';
 
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
@@ -186,7 +193,7 @@ class AdminScreen extends StatelessWidget {
             'Adicionar, editar e remover pratos',
             Icons.restaurant_menu,
             AppColors.warning,
-            () => _showComingSoon(context, 'Gerenciamento de Cardápio'),
+            () => _showAddMenuItemDialog(context),
           ),
           const SizedBox(height: 12),
           _buildFeatureCard(
@@ -602,13 +609,21 @@ class AdminScreen extends StatelessWidget {
     );
   }
 
+  void _showAddMenuItemDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const _AddMenuItemDialog(),
+    );
+  }
+
   void _openCreateOrderFlow(BuildContext context, OrderProvider orderProvider) {
+    final outerContext = context;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return SizedBox(
           height: 420,
           child: Column(
@@ -618,7 +633,7 @@ class AdminScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   'Selecione a Mesa',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -637,13 +652,13 @@ class AdminScreen extends StatelessWidget {
                     final table = orderProvider.tables[index];
                     final isOccupied = table.status == TableStatus.occupied;
                     return InkWell(
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TableOrderScreen(table: table),
-                          ),
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        await Future<void>.delayed(Duration.zero);
+                        if (!outerContext.mounted) return;
+                        await _openTableWithComandasIfNeeded(
+                          outerContext,
+                          table,
                         );
                       },
                       borderRadius: BorderRadius.circular(12),
@@ -694,6 +709,32 @@ class AdminScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _openTableWithComandasIfNeeded(
+    BuildContext context,
+    TableModel table,
+  ) async {
+    final orderProvider = context.read<OrderProvider>();
+
+    if (table.status == TableStatus.available) {
+      final List<Comanda>? comandas = await showDialog<List<Comanda>>(
+        context: context,
+        builder: (_) => _ComandasDialog(tableNumber: table.number),
+      );
+
+      if (comandas == null || !context.mounted) return;
+      await orderProvider.occupyTableWithComandas(table.number, comandas);
+    }
+
+    if (!context.mounted) return;
+    final updatedTable = orderProvider.getTable(table.number);
+    if (updatedTable == null) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => TableOrderScreen(table: updatedTable)),
     );
   }
 
@@ -783,5 +824,418 @@ class AdminScreen extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+class _ComandasDialog extends StatefulWidget {
+  final int tableNumber;
+  const _ComandasDialog({required this.tableNumber});
+
+  @override
+  State<_ComandasDialog> createState() => _ComandasDialogState();
+}
+
+class _ComandasDialogState extends State<_ComandasDialog> {
+  int numComandas = 1;
+  late List<TextEditingController> controllers;
+
+  @override
+  void initState() {
+    super.initState();
+    controllers = [TextEditingController()];
+  }
+
+  @override
+  void dispose() {
+    for (final c in controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text('Ocupar Mesa ${widget.tableNumber}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Quantas comandas serão usadas?',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: numComandas > 1
+                      ? () {
+                          setState(() {
+                            numComandas--;
+                            controllers.removeLast();
+                          });
+                        }
+                      : null,
+                ),
+                Text(
+                  '$numComandas',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: numComandas < 10
+                      ? () {
+                          setState(() {
+                            numComandas++;
+                            controllers.add(TextEditingController());
+                          });
+                        }
+                      : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Nome das comandas:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            ...List.generate(
+              numComandas,
+              (index) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TextField(
+                  controller: controllers[index],
+                  decoration: InputDecoration(
+                    labelText: 'Comanda ${index + 1}',
+                    hintText: 'Ex: João, Maria, Comanda 1...',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.receipt),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final nowMs = DateTime.now().millisecondsSinceEpoch;
+            final comandas = controllers
+                .asMap()
+                .entries
+                .map(
+                  (entry) => Comanda(
+                    id: '${widget.tableNumber}-comanda-${entry.key + 1}-$nowMs',
+                    tableNumber: widget.tableNumber,
+                    name: entry.value.text.trim().isEmpty
+                        ? 'Comanda ${entry.key + 1}'
+                        : entry.value.text.trim(),
+                    createdAt: DateTime.now(),
+                  ),
+                )
+                .toList();
+            Navigator.pop(context, comandas);
+          },
+          child: const Text('Ocupar Mesa'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddMenuItemDialog extends StatefulWidget {
+  const _AddMenuItemDialog();
+
+  @override
+  State<_AddMenuItemDialog> createState() => _AddMenuItemDialogState();
+}
+
+class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
+  final _formKey = GlobalKey<FormState>();
+
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _priceController = TextEditingController();
+  final _categoryController = TextEditingController();
+  final _imageUrlController = TextEditingController();
+
+  final _imagePicker = ImagePicker();
+
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _categoryController.dispose();
+    _imageUrlController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final menuProvider = context.watch<MenuProvider>();
+    final categories = [...menuProvider.categories]..sort();
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final availableWidth = screenWidth - 96; // dialog padding/margins (aprox.)
+    final previewWidth = availableWidth < 200
+        ? 200.0
+        : (availableWidth > 320 ? 320.0 : availableWidth);
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          const Icon(Icons.add_circle_outline, color: AppColors.warning),
+          const SizedBox(width: 12),
+          const Expanded(child: Text('Adicionar produto')),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'Nome'),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Informe o nome';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _descriptionController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'Descrição'),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Informe a descrição';
+                  }
+                  return null;
+                },
+                minLines: 2,
+                maxLines: 4,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _priceController,
+                textInputAction: TextInputAction.next,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Preço (ex: 12.90)',
+                ),
+                validator: (v) {
+                  final value = v?.trim() ?? '';
+                  if (value.isEmpty) return 'Informe o preço';
+                  final normalized = value.replaceAll(',', '.');
+                  final parsed = double.tryParse(normalized);
+                  if (parsed == null || parsed < 0) return 'Preço inválido';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              if (categories.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  value: null,
+                  items: categories
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    _categoryController.text = value;
+                    setState(() {});
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Categoria (selecionar)',
+                  ),
+                ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _categoryController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'Categoria'),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Informe a categoria';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Imagem',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isSaving ? null : _pickImageFromGallery,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: Text(
+                        _imageUrlController.text.trim().isEmpty
+                            ? 'Selecionar da galeria'
+                            : 'Trocar imagem',
+                      ),
+                    ),
+                  ),
+                  if (_imageUrlController.text.trim().isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Remover imagem',
+                      onPressed: _isSaving
+                          ? null
+                          : () => setState(() => _imageUrlController.clear()),
+                      icon: const Icon(Icons.delete_outline),
+                      color: AppColors.error,
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (_imageUrlController.text.trim().isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: MenuItemImage(
+                    imageUrl: _imageUrlController.text.trim(),
+                    height: 140,
+                    width: previewWidth,
+                    fit: BoxFit.cover,
+                    placeholder: Container(
+                      height: 140,
+                      color: AppColors.background,
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                    errorWidget: Container(
+                      height: 140,
+                      color: AppColors.background,
+                      child: const Icon(
+                        Icons.broken_image_outlined,
+                        size: 42,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _isSaving ? null : () => _save(context),
+          child: _isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Adicionar'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _save(BuildContext context) async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_imageUrlController.text.trim().isEmpty) {
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Selecione uma imagem da galeria'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final priceText = _priceController.text.trim().replaceAll(',', '.');
+      final price = double.parse(priceText);
+
+      final item = MenuItem(
+        id: const Uuid().v4(),
+        name: _nameController.text.trim(),
+        description: _descriptionController.text.trim(),
+        price: price,
+        category: _categoryController.text.trim(),
+        imageUrl: _imageUrlController.text.trim(),
+      );
+
+      await context.read<MenuProvider>().addMenuItem(item);
+
+      if (!context.mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      Navigator.pop(context);
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Produto adicionado ao cardápio'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (picked == null) return;
+
+      final persisted = await ImageStorageService.persistPickedImage(picked);
+      if (!mounted) return;
+      setState(() => _imageUrlController.text = persisted);
+    } catch (_) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível selecionar a imagem'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 }
