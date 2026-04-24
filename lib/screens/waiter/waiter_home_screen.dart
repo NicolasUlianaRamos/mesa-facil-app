@@ -10,6 +10,8 @@ import '../../utils/constants.dart';
 import '../../widgets/table_card.dart';
 import '../../widgets/chat_widget.dart';
 import '../../widgets/order_card.dart';
+import '../../widgets/require_auth.dart';
+import '../admin/manage_menu_screen.dart';
 import 'table_order_screen.dart';
 // import 'ready_orders_screen.dart';
 
@@ -22,7 +24,17 @@ class WaiterHomeScreen extends StatefulWidget {
 
 class _WaiterHomeScreenState extends State<WaiterHomeScreen> {
   bool _showChat = false;
-  int _currentIndex = 0; // 0 = Mesas, 1 = Prontos
+  int _currentIndex = 0; // 0 = Mesas, 1 = Prontos, 2 = Cardápio
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<OrderProvider>().refreshTablesFromBackend();
+      context.read<OrderProvider>().refreshOrdersFromBackend();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,142 +42,154 @@ class _WaiterHomeScreenState extends State<WaiterHomeScreen> {
     final orderProvider = context.watch<OrderProvider>();
     final chatProvider = context.watch<ChatProvider>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Mesa Fácil',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'Garçom: ${auth.currentUser?.name}',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.normal,
+    return RequireAuth(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Mesa Fácil',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
+              Text(
+                'Garçom: ${auth.currentUser?.name}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  onPressed: () {
+                    setState(() => _showChat = !_showChat);
+                    chatProvider.setChatOpen(_showChat);
+                  },
+                ),
+                if (chatProvider.unreadCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppColors.error,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${chatProvider.unreadCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () {
+                auth.logout();
+              },
             ),
           ],
         ),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chat_bubble_outline),
-                onPressed: () {
-                  setState(() => _showChat = !_showChat);
-                  if (_showChat) {
-                    chatProvider.markAsRead();
-                  }
+        body: Stack(
+          children: [
+            if (_currentIndex == 0)
+              _buildTablesView(orderProvider)
+            else if (_currentIndex == 1)
+              _buildReadyOrdersView(orderProvider)
+            else
+              const ManageMenuScreen(isAdmin: false),
+            if (_showChat)
+              ChatWidget(
+                onClose: () {
+                  setState(() => _showChat = false);
+                  chatProvider.setChatOpen(false);
                 },
               ),
-              if (chatProvider.unreadCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    child: Text(
-                      '${chatProvider.unreadCount}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+          ],
+        ),
+        floatingActionButton: _currentIndex == 0 && !_showChat
+            ? FloatingActionButton.extended(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              auth.logout();
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          _currentIndex == 0
-              ? _buildTablesView(orderProvider)
-              : _buildReadyOrdersView(orderProvider),
-          if (_showChat)
-            ChatWidget(onClose: () => setState(() => _showChat = false)),
-        ],
-      ),
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    title: const Text('Escaneamento QR Code'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.qr_code_scanner,
-                          size: 64,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Função de escaneamento de QR Code',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.info.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
+                      title: const Text('Escaneamento QR Code'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.qr_code_scanner,
+                            size: 64,
+                            color: AppColors.primary,
                           ),
-                          child: const Text(
-                            'Em breve: Escaneie o QR Code da mesa para abrir o pedido automaticamente',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Função de escaneamento de QR Code',
                             textAlign: TextAlign.center,
                           ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.info.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'Em breve: Escaneie o QR Code da mesa para abrir o pedido automaticamente',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Fechar'),
                         ),
                       ],
                     ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Fechar'),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Escanear QR'),
-              backgroundColor: AppColors.secondary,
-            )
-          : null,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.table_bar), label: 'Mesas'),
-          BottomNavigationBarItem(icon: Icon(Icons.outbox), label: 'Prontos'),
-        ],
+                  );
+                },
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Escanear QR'),
+                backgroundColor: AppColors.secondary,
+              )
+            : null,
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (i) => setState(() => _currentIndex = i),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.table_bar),
+              label: 'Mesas',
+            ),
+            BottomNavigationBarItem(icon: Icon(Icons.outbox), label: 'Prontos'),
+            BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: 'Cardápio'),
+          ],
+        ),
       ),
     );
   }

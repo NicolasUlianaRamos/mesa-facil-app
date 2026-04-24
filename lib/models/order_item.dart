@@ -21,7 +21,7 @@ class OrderItem {
       'name': name,
       'price': price,
       'quantity': quantity,
-      'specialInstructions': specialInstructions,
+      if (specialInstructions != null) 'specialInstructions': specialInstructions,
     };
   }
 

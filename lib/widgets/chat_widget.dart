@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
-import '../models/message.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../utils/constants.dart';
@@ -21,6 +19,22 @@ class _ChatWidgetState extends State<ChatWidget> {
   final _scrollController = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+
+    _scrollController.addListener(() {
+      if (!_scrollController.hasClients) return;
+      final position = _scrollController.position;
+
+      // With reverse=true, older messages are towards maxScrollExtent.
+      final shouldLoadMore = position.pixels >= position.maxScrollExtent - 80;
+      if (shouldLoadMore) {
+        context.read<ChatProvider>().loadOlderMessages();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
@@ -33,21 +47,20 @@ class _ChatWidgetState extends State<ChatWidget> {
     final auth = context.read<AuthProvider>();
     final chatProvider = context.read<ChatProvider>();
 
-    final message = Message(
-      id: const Uuid().v4(),
-      senderId: auth.currentUser!.id,
-      senderName: auth.currentUser!.name,
-      content: _messageController.text.trim(),
-      timestamp: DateTime.now(),
-    );
+    final user = auth.currentUser;
+    if (user == null) return;
 
-    chatProvider.sendMessage(message);
+    chatProvider.sendTextMessage(
+      text: _messageController.text.trim(),
+      senderId: user.id,
+      senderName: user.name,
+    );
     _messageController.clear();
 
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );

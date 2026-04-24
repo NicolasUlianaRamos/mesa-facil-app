@@ -7,6 +7,7 @@ import '../../providers/chat_provider.dart';
 import '../../utils/constants.dart';
 import '../../widgets/order_card.dart';
 import '../../widgets/chat_widget.dart';
+import '../../widgets/require_auth.dart';
 
 class KitchenScreen extends StatefulWidget {
   const KitchenScreen({super.key});
@@ -20,6 +21,15 @@ class _KitchenScreenState extends State<KitchenScreen> {
   bool _showChat = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<OrderProvider>().refreshOrdersFromBackend();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final orderProvider = context.watch<OrderProvider>();
@@ -29,181 +39,200 @@ class _KitchenScreenState extends State<KitchenScreen> {
         .where((order) => order.status == _selectedStatus)
         .toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Cozinha',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              auth.currentUser?.name ?? '',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.normal,
+    return RequireAuth(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Cozinha',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
+              Text(
+                auth.currentUser?.name ?? '',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  onPressed: () {
+                    setState(() => _showChat = !_showChat);
+                    chatProvider.setChatOpen(_showChat);
+                  },
+                ),
+                if (chatProvider.unreadCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppColors.error,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${chatProvider.unreadCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () {
+                auth.logout();
+              },
             ),
           ],
         ),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chat_bubble_outline),
-                onPressed: () {
-                  setState(() => _showChat = !_showChat);
-                  if (_showChat) {
-                    chatProvider.markAsRead();
-                  }
-                },
-              ),
-              if (chatProvider.unreadCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    child: Text(
-                      '${chatProvider.unreadCount}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Recebidos',
+                          orderProvider.activeOrders
+                              .where((o) => o.status == OrderStatus.received)
+                              .length
+                              .toString(),
+                          AppColors.info,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Em Preparo',
+                          orderProvider.activeOrders
+                              .where((o) => o.status == OrderStatus.preparing)
+                              .length
+                              .toString(),
+                          AppColors.warning,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Finalizados',
+                          orderProvider.activeOrders
+                              .where((o) => o.status == OrderStatus.finished)
+                              .length
+                              .toString(),
+                          AppColors.success,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              auth.logout();
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                color: AppColors.primary.withValues(alpha: 0.1),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        'Recebidos',
-                        orderProvider.activeOrders
-                            .where((o) => o.status == OrderStatus.received)
-                            .length
-                            .toString(),
-                        AppColors.info,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildStatCard(
-                        'Em Preparo',
-                        orderProvider.activeOrders
-                            .where((o) => o.status == OrderStatus.preparing)
-                            .length
-                            .toString(),
-                        AppColors.warning,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildStatCard(
-                        'Finalizados',
-                        orderProvider.activeOrders
-                            .where((o) => o.status == OrderStatus.finished)
-                            .length
-                            .toString(),
-                        AppColors.success,
-                      ),
-                    ),
-                  ],
+                Container(
+                  height: 60,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      _buildStatusChip(OrderStatus.received),
+                      const SizedBox(width: 8),
+                      _buildStatusChip(OrderStatus.preparing),
+                      const SizedBox(width: 8),
+                      _buildStatusChip(OrderStatus.finished),
+                    ],
+                  ),
                 ),
-              ),
-              Container(
-                height: 60,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    _buildStatusChip(OrderStatus.received),
-                    const SizedBox(width: 8),
-                    _buildStatusChip(OrderStatus.preparing),
-                    const SizedBox(width: 8),
-                    _buildStatusChip(OrderStatus.finished),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: filteredOrders.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              OrderStatusHelper.getIcon(_selectedStatus),
-                              size: 64,
-                              color: AppColors.textSecondary.withValues(
-                                alpha: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Nenhum pedido ${OrderStatusHelper.getLabel(_selectedStatus).toLowerCase()}',
-                              style: TextStyle(
-                                fontSize: 16,
+                Expanded(
+                  child: filteredOrders.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                OrderStatusHelper.getIcon(_selectedStatus),
+                                size: 64,
                                 color: AppColors.textSecondary.withValues(
-                                  alpha: 0.7,
+                                  alpha: 0.5,
                                 ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+                              Text(
+                                'Nenhum pedido ${OrderStatusHelper.getLabel(_selectedStatus).toLowerCase()}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filteredOrders.length,
+                          itemBuilder: (context, index) {
+                            final order = filteredOrders[index];
+                            return OrderCard(
+                                  order: order,
+                                  onStatusChange: (newStatus) async {
+                                    try {
+                                      await orderProvider.updateOrderStatus(
+                                        order.id,
+                                        newStatus,
+                                      );
+                                    } catch (e) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(e.toString()),
+                                          backgroundColor: AppColors.error,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                )
+                                .animate()
+                                .fadeIn(
+                                  delay: (index * 50).ms,
+                                  duration: 300.ms,
+                                )
+                                .slideX(begin: -0.2, end: 0);
+                          },
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filteredOrders.length,
-                        itemBuilder: (context, index) {
-                          final order = filteredOrders[index];
-                          return OrderCard(
-                                order: order,
-                                onStatusChange: (newStatus) {
-                                  orderProvider.updateOrderStatus(
-                                    order.id,
-                                    newStatus,
-                                  );
-                                },
-                              )
-                              .animate()
-                              .fadeIn(delay: (index * 50).ms, duration: 300.ms)
-                              .slideX(begin: -0.2, end: 0);
-                        },
-                      ),
+                ),
+              ],
+            ),
+            if (_showChat)
+              ChatWidget(
+                onClose: () {
+                  setState(() => _showChat = false);
+                  chatProvider.setChatOpen(false);
+                },
               ),
-            ],
-          ),
-          if (_showChat)
-            ChatWidget(onClose: () => setState(() => _showChat = false)),
-        ],
+          ],
+        ),
       ),
     );
   }

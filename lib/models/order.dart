@@ -55,30 +55,51 @@ class Order {
   }
 
   factory Order.fromJson(Map<String, dynamic> json) {
+    final rawId = (json['id'] ?? json['_id'] ?? '').toString();
+
+    final tableNumberRaw = json['tableNumber'];
+    final tableNumber = tableNumberRaw is num
+        ? tableNumberRaw.toInt()
+        : int.tryParse((tableNumberRaw ?? '0').toString()) ?? 0;
+
+    final rawStatus = (json['status'] ?? '').toString();
+    final normalizedStatus = switch (rawStatus) {
+      'received' => OrderStatus.received,
+      'preparing' => OrderStatus.preparing,
+      'finished' => OrderStatus.finished,
+      'delivered' => OrderStatus.delivered,
+      _ => null,
+    };
+
+    DateTime? parseDate(dynamic v) {
+      if (v == null) return null;
+      final s = v.toString();
+      return s.isEmpty ? null : DateTime.tryParse(s);
+    }
+
+    final rawItems = json['items'];
+    final itemsList = rawItems is List ? rawItems : const [];
+
     return Order(
-      id: json['id'] as String,
-      tableNumber: json['tableNumber'] as int,
+      id: rawId,
+      tableNumber: tableNumber,
       comandaId: json['comandaId'] as String?,
-      items: (json['items'] as List).map((item) {
-        final m = (item as Map).map((k, v) => MapEntry(k.toString(), v));
+      items: itemsList.whereType<Map>().map((item) {
+        final m = item.map((k, v) => MapEntry(k.toString(), v));
         return OrderItem.fromJson(m);
       }).toList(),
-      status: OrderStatus.values.firstWhere(
-        (e) => e.toString() == json['status'],
-        orElse: () => OrderStatus.received,
-      ),
-      waiterId: json['waiterId'] as String,
-      waiterName: json['waiterName'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      startedAt: json['startedAt'] != null
-          ? DateTime.parse(json['startedAt'] as String)
-          : null,
-      finishedAt: json['finishedAt'] != null
-          ? DateTime.parse(json['finishedAt'] as String)
-          : null,
-      deliveredAt: json['deliveredAt'] != null
-          ? DateTime.parse(json['deliveredAt'] as String)
-          : null,
+      status:
+          normalizedStatus ??
+          OrderStatus.values.firstWhere(
+            (e) => e.toString() == json['status'],
+            orElse: () => OrderStatus.received,
+          ),
+      waiterId: (json['waiterId'] ?? '').toString(),
+      waiterName: (json['waiterName'] ?? '').toString(),
+      createdAt: parseDate(json['createdAt']) ?? DateTime.now(),
+      startedAt: parseDate(json['startedAt']),
+      finishedAt: parseDate(json['finishedAt']),
+      deliveredAt: parseDate(json['deliveredAt']),
       generalNotes: json['generalNotes'] as String?,
       synced: json['synced'] as bool? ?? false,
     );

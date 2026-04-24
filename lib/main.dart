@@ -14,6 +14,8 @@ import 'screens/waiter/waiter_home_screen.dart';
 import 'screens/kitchen/kitchen_screen.dart';
 import 'screens/admin/admin_screen.dart';
 import 'utils/constants.dart';
+import 'widgets/require_auth.dart';
+import 'widgets/require_admin_auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,17 +97,23 @@ class AppNavigator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
+        if (auth.isInitializing) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
         if (!auth.isAuthenticated) {
           return const LoginScreen();
         }
 
         switch (auth.currentUser?.role) {
           case UserRole.waiter:
-            return const WaiterHomeScreen();
+            return const RequireAuth(child: WaiterHomeScreen());
           case UserRole.kitchen:
-            return const KitchenScreen();
+            return const RequireAuth(child: KitchenScreen());
           case UserRole.admin:
-            return const AdminScreen();
+            return const RequireAdminAuth(child: AdminScreen());
           default:
             return const LoginScreen();
         }

@@ -1,132 +1,95 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:uuid/uuid.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../models/menu_item.dart';
+import '../services/api_config.dart';
 import '../services/storage_service.dart';
+import '../services/menu_foods_service.dart';
 
 class MenuProvider with ChangeNotifier {
   List<MenuItem> _menuItems = [];
+  final MenuFoodsService _menuFoodsService = MenuFoodsService();
+  io.Socket? _menuSocket;
 
   MenuProvider() {
     _loadMenu();
-    _initializeDemoMenu();
+    unawaited(refreshMenuFromBackend());
+    _connectMenuRealtime();
+  }
+
+  @override
+  void dispose() {
+    _menuSocket?.dispose();
+    super.dispose();
   }
 
   List<MenuItem> get menuItems => _menuItems;
 
+  List<MenuItem> get activeMenuItems =>
+      _menuItems.where((item) => item.available).toList();
+
   List<String> get categories {
-    return _menuItems.map((item) => item.category).toSet().toList();
+    return activeMenuItems.map((item) => item.category).toSet().toList();
   }
 
   List<MenuItem> getItemsByCategory(String category) {
-    return _menuItems.where((item) => item.category == category).toList();
+    return activeMenuItems.where((item) => item.category == category).toList();
   }
 
   void _loadMenu() {
     _menuItems = StorageService.getMenuItems();
   }
 
-  Future<void> _initializeDemoMenu() async {
-    if (_menuItems.isEmpty) {
-      final demoItems = [
-        MenuItem(
-          id: const Uuid().v4(),
-          name: 'Pizza Margherita',
-          description: 'Molho de tomate, mussarela e manjericão fresco',
-          price: 45.90,
-          imageUrl:
-              'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?q=80&w=800&auto=format&fit=crop',
-          category: 'Pizzas',
-        ),
-        MenuItem(
-          id: const Uuid().v4(),
-          name: 'Pizza Calabresa',
-          description: 'Calabresa, mussarela, cebola e orégano',
-          price: 48.90,
-          imageUrl:
-              'https://images.unsplash.com/photo-1628840042765-356cda07504e?q=80&w=800&auto=format&fit=crop',
-          category: 'Pizzas',
-        ),
-        MenuItem(
-          id: const Uuid().v4(),
-          name: 'Pizza Portuguesa',
-          description: 'Presunto, ovos, cebola, azeitona e mussarela',
-          price: 52.90,
-          imageUrl:
-              'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=800&auto=format&fit=crop',
-          category: 'Pizzas',
-        ),
-        MenuItem(
-          id: const Uuid().v4(),
-          name: 'Coca-Cola 2L',
-          description: 'Refrigerante Coca-Cola 2 litros',
-          price: 12.90,
-          imageUrl:
-              'https://images.unsplash.com/photo-1554866585-cd94860890b7?q=80&w=800&auto=format&fit=crop',
-          category: 'Bebidas',
-        ),
-        MenuItem(
-          id: const Uuid().v4(),
-          name: 'Guaraná Antarctica 2L',
-          description: 'Refrigerante Guaraná 2 litros',
-          price: 11.90,
-          imageUrl:
-              'https://images.unsplash.com/photo-1581006852262-e4307cf6283a?q=80&w=800&auto=format&fit=crop',
-          category: 'Bebidas',
-        ),
-        MenuItem(
-          id: const Uuid().v4(),
-          name: 'Suco Natural Laranja',
-          description: 'Suco de laranja natural 500ml',
-          price: 8.90,
-          imageUrl:
-              'https://images.unsplash.com/photo-1600271886742-f049cd451bba?q=80&w=800&auto=format&fit=crop',
-          category: 'Bebidas',
-        ),
-        MenuItem(
-          id: const Uuid().v4(),
-          name: 'Pudim de Leite',
-          description: 'Tradicional pudim de leite condensado',
-          price: 15.90,
-          imageUrl:
-              'https://images.unsplash.com/photo-1624353365286-3f8d62daad51?q=80&w=800&auto=format&fit=crop',
-          category: 'Sobremesas',
-        ),
-        MenuItem(
-          id: const Uuid().v4(),
-          name: 'Brownie com Sorvete',
-          description: 'Brownie de chocolate com sorvete de baunilha',
-          price: 18.90,
-          imageUrl:
-              'https://images.unsplash.com/photo-1607920591413-4ec007e70023?q=80&w=800&auto=format&fit=crop',
-          category: 'Sobremesas',
-        ),
-        MenuItem(
-          id: const Uuid().v4(),
-          name: 'Salada Caesar',
-          description: 'Alface, croutons, parmesão e molho caesar',
-          price: 28.90,
-          imageUrl:
-              'https://images.unsplash.com/photo-1546793665-c74683f339c1?q=80&w=800&auto=format&fit=crop',
-          category: 'Saladas',
-        ),
-        MenuItem(
-          id: const Uuid().v4(),
-          name: 'Hambúrguer Artesanal',
-          description: 'Pão artesanal, hambúrguer 180g, queijo e salada',
-          price: 35.90,
-          imageUrl:
-              'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=800&auto=format&fit=crop',
-          category: 'Lanches',
-        ),
-      ];
+  void _connectMenuRealtime() {
+    final socket = io.io(
+      ApiConfig.baseUrl,
+      io.OptionBuilder()
+          .setTransports(['websocket', 'polling'])
+          .enableReconnection()
+          .setReconnectionAttempts(9999)
+          .setReconnectionDelay(500)
+          .build(),
+    );
 
-      for (var item in demoItems) {
-        await StorageService.saveMenuItem(item);
+    _menuSocket = socket;
+
+    socket.onConnect((_) {
+      socket.emit('menu:join');
+    });
+
+    socket.on('menu:updated', (dynamic data) {
+      if (data is Map) {
+        final id = (data['_id'] ?? data['id'] ?? '').toString();
+        final isActive = data['isActive'] is bool ? data['isActive'] as bool : true;
+        final idx = _menuItems.indexWhere((e) => e.id == id);
+        if (idx != -1) {
+          _menuItems[idx] = MenuItem(
+            id: _menuItems[idx].id,
+            name: _menuItems[idx].name,
+            description: _menuItems[idx].description,
+            price: _menuItems[idx].price,
+            imageUrl: _menuItems[idx].imageUrl,
+            category: _menuItems[idx].category,
+            available: isActive,
+          );
+          unawaited(StorageService.replaceMenuItems(_menuItems));
+          notifyListeners();
+        }
       }
+    });
 
-      _loadMenu();
-      notifyListeners();
-    }
+    socket.connect();
+  }
+
+  Future<void> refreshMenuFromBackend() async {
+    final token = StorageService.getAuthToken();
+    if (token == null || token.isEmpty) return;
+
+    final items = await _menuFoodsService.listMenuFoods(token: token);
+    await StorageService.replaceMenuItems(items);
+    _loadMenu();
+    notifyListeners();
   }
 
   Future<void> addMenuItem(MenuItem item) async {
@@ -139,5 +102,14 @@ class MenuProvider with ChangeNotifier {
     await StorageService.saveMenuItem(item);
     _loadMenu();
     notifyListeners();
+  }
+
+  Future<void> toggleItemActive(String itemId) async {
+    final token = StorageService.getAuthToken();
+    if (token == null || token.isEmpty) return;
+
+    await _menuFoodsService.toggleMenuFoodActive(token: token, menuFoodId: itemId);
+    // O refresh em tempo real virá pelo socket; força também para garantir consistência
+    await refreshMenuFromBackend();
   }
 }

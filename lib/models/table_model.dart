@@ -30,12 +30,22 @@ class TableModel {
   }
 
   factory TableModel.fromJson(Map<String, dynamic> json) {
+    final rawStatus = (json['status'] ?? '').toString();
+    final normalizedStatus = switch (rawStatus) {
+      'available' => TableStatus.available,
+      'occupied' => TableStatus.occupied,
+      'needsBill' => TableStatus.needsBill,
+      _ => null,
+    };
+
     return TableModel(
       number: json['number'] as int,
-      status: TableStatus.values.firstWhere(
-        (e) => e.toString() == json['status'],
-        orElse: () => TableStatus.available,
-      ),
+      status:
+          normalizedStatus ??
+          TableStatus.values.firstWhere(
+            (e) => e.toString() == json['status'],
+            orElse: () => TableStatus.available,
+          ),
       currentOrderId: json['currentOrderId'] as String?,
       currentTotal: (json['currentTotal'] as num?)?.toDouble() ?? 0.0,
       occupiedSince: json['occupiedSince'] != null

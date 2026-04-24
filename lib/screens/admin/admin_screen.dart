@@ -5,70 +5,157 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/menu_provider.dart';
 import '../../models/comanda.dart';
 import '../../models/table_model.dart';
 import '../../utils/constants.dart';
 import '../waiter/table_order_screen.dart';
+import '../../widgets/chat_widget.dart';
 import '../../widgets/order_card.dart';
 import '../../models/menu_item.dart';
 import '../../services/image_storage_service.dart';
 import '../../widgets/menu_item_image.dart';
+import '../../widgets/require_auth.dart';
+import 'manage_menu_screen.dart';
+import 'manage_users_screen.dart';
 
-class AdminScreen extends StatelessWidget {
+class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final orderProvider = context.watch<OrderProvider>();
-    final menuProvider = context.watch<MenuProvider>();
+  State<AdminScreen> createState() => _AdminScreenState();
+}
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Administração',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                auth.currentUser?.name ?? '',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.normal,
+class _AdminScreenState extends State<AdminScreen> {
+  bool _showChat = false;
+  bool _historyBootstrapped = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_historyBootstrapped) return;
+    _historyBootstrapped = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<OrderProvider>().refreshOrdersHistoryFromBackend();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RequireAuth(
+      child: Builder(
+        builder: (context) {
+          final auth = context.watch<AuthProvider>();
+          final orderProvider = context.watch<OrderProvider>();
+          final menuProvider = context.watch<MenuProvider>();
+          final chatProvider = context.watch<ChatProvider>();
+
+          return DefaultTabController(
+            length: 2,
+            child: Scaffold(
+              appBar: AppBar(
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Administração',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      auth.currentUser?.name ?? '',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  Stack(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        onPressed: () {
+                          setState(() => _showChat = !_showChat);
+                          chatProvider.setChatOpen(_showChat);
+                        },
+                        tooltip: 'Chat',
+                      ),
+                      if (chatProvider.unreadCount > 0)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.error,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              '${chatProvider.unreadCount}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout),
+                    onPressed: () {
+                      auth.logout();
+                    },
+                  ),
+                ],
+                bottom: const TabBar(
+                  labelColor: Colors.white,
+                  tabs: [
+                    Tab(text: 'Resumo'),
+                    Tab(text: 'Histórico Pedidos'),
+                  ],
                 ),
               ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () {
-                auth.logout();
-              },
+              body: Stack(
+                children: [
+                  TabBarView(
+                    children: [
+                      _buildDashboardTab(
+                        context,
+                        auth,
+                        orderProvider,
+                        menuProvider,
+                      ),
+                      _buildOrdersHistoryTab(context, orderProvider),
+                    ],
+                  ),
+                  if (_showChat)
+                    ChatWidget(
+                      onClose: () {
+                        setState(() => _showChat = false);
+                        chatProvider.setChatOpen(false);
+                      },
+                    ),
+                ],
+              ),
             ),
-          ],
-          bottom: const TabBar(
-            labelColor: Colors.white,
-            tabs: [
-              Tab(text: 'Resumo'),
-              Tab(text: 'Histórico Pedidos'),
-              Tab(text: 'Mesas Finalizadas'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildDashboardTab(context, auth, orderProvider, menuProvider),
-            _buildOrdersHistoryTab(context, orderProvider),
-            _buildTablesFinalizedHistoryTab(context, orderProvider),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -193,7 +280,10 @@ class AdminScreen extends StatelessWidget {
             'Adicionar, editar e remover pratos',
             Icons.restaurant_menu,
             AppColors.warning,
-            () => _showAddMenuItemDialog(context),
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ManageMenuScreen()),
+            ),
           ),
           const SizedBox(height: 12),
           _buildFeatureCard(
@@ -202,7 +292,10 @@ class AdminScreen extends StatelessWidget {
             'Adicionar garçons, cozinheiros e administradores',
             Icons.people,
             AppColors.success,
-            () => _showComingSoon(context, 'Gerenciamento de Usuários'),
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ManageUsersScreen()),
+            ),
           ),
           const SizedBox(height: 12),
           _buildFeatureCard(
@@ -231,138 +324,179 @@ class AdminScreen extends StatelessWidget {
     BuildContext context,
     OrderProvider orderProvider,
   ) {
-    final orders = [...orderProvider.orders]
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final orders = orderProvider.ordersHistory;
+    final loading = orderProvider.ordersHistoryLoading;
+    final hasMore = orderProvider.ordersHistoryHasMore;
+    final initialized = orderProvider.ordersHistoryInitialized;
+    final error = orderProvider.ordersHistoryError;
 
-    if (orders.isEmpty) {
-      return Center(
-        child: Text(
-          'Nenhum pedido no histórico',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
-        ),
-      );
+    if (!initialized && !loading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        context.read<OrderProvider>().refreshOrdersHistoryFromBackend();
+      });
     }
 
     final createdFormat = DateFormat('dd/MM/yyyy HH:mm');
     final shortFormat = DateFormat('dd/MM HH:mm');
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: orders.length,
-      itemBuilder: (context, index) {
-        final order = orders[index];
-        final started = order.startedAt != null
-            ? shortFormat.format(order.startedAt!)
-            : '—';
-        final finished = order.finishedAt != null
-            ? shortFormat.format(order.finishedAt!)
-            : '—';
+    if (!initialized && loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: OrderStatusHelper.getColor(order.status),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        OrderStatusHelper.getLabel(order.status),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      createdFormat.format(order.createdAt),
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Mesa ${order.tableNumber}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Garçom: ${order.waiterName}',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Cozinha: em preparo $started • finalizado $finished',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTablesFinalizedHistoryTab(
-    BuildContext context,
-    OrderProvider orderProvider,
-  ) {
-    final events = [...orderProvider.tableFinalizationHistory]
-      ..sort((a, b) => b.finalizedAt.compareTo(a.finalizedAt));
-
-    if (events.isEmpty) {
+    if (error != null && error.trim().isNotEmpty) {
       return Center(
-        child: Text(
-          'Nenhuma mesa finalizada no histórico',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                error,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () =>
+                    orderProvider.refreshOrdersHistoryFromBackend(),
+                child: const Text('Tentar novamente'),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    if (orders.isEmpty) {
+      return Center(
+        child: Text(
+          'Nenhum pedido no histórico',
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge
+              ?.copyWith(color: AppColors.textSecondary),
+        ),
+      );
+    }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: events.length,
-      itemBuilder: (context, index) {
-        final event = events[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            leading: const Icon(Icons.table_bar, color: AppColors.secondary),
-            title: Text('Mesa ${event.tableNumber} finalizada'),
-            subtitle: Text(dateFormat.format(event.finalizedAt)),
-          ),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: () => orderProvider.refreshOrdersHistoryFromBackend(),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: orders.length + 1,
+        itemBuilder: (context, index) {
+          if (index == orders.length) {
+            if (!hasMore) return const SizedBox(height: 24);
+
+            return Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 24),
+              child: loading
+                  ? const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            await orderProvider
+                                .loadMoreOrdersHistoryFromBackend();
+                          } catch (e) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(e.toString()),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('Carregar mais'),
+                      ),
+                    ),
+            );
+          }
+
+          final order = orders[index];
+          final started = order.startedAt != null
+              ? shortFormat.format(order.startedAt!)
+              : '—';
+          final finished = order.finishedAt != null
+              ? shortFormat.format(order.finishedAt!)
+              : '—';
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: OrderStatusHelper.getColor(order.status),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          OrderStatusHelper.getLabel(order.status),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        createdFormat.format(order.createdAt),
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Mesa ${order.tableNumber}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Garçom: ${order.waiterName}',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Cozinha: em preparo $started • finalizado $finished',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -609,104 +743,161 @@ class AdminScreen extends StatelessWidget {
     );
   }
 
-  void _showAddMenuItemDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const _AddMenuItemDialog(),
-    );
-  }
-
   void _openCreateOrderFlow(BuildContext context, OrderProvider orderProvider) {
     final outerContext = context;
+    var creatingTable = false;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) {
-        return SizedBox(
-          height: 420,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Selecione a Mesa',
-                  style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+        return StatefulBuilder(
+          builder: (sheetContext, setModalState) {
+            Future<void> createTable() async {
+              if (creatingTable) return;
+              creatingTable = true;
+              setModalState(() {});
+
+              final messenger = ScaffoldMessenger.of(outerContext);
+              final table = await orderProvider.createTableFromBackend();
+
+              if (!outerContext.mounted) return;
+
+              creatingTable = false;
+              setModalState(() {});
+
+              if (table == null) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Não foi possível criar a mesa (verifique permissões/login).',
+                    ),
+                    backgroundColor: AppColors.error,
                   ),
+                );
+                return;
+              }
+
+              // Keep list in sync with backend numbering.
+              await orderProvider.refreshTablesFromBackend();
+
+              if (!outerContext.mounted) return;
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text('Mesa ${table.number} criada com sucesso.'),
                 ),
-              ),
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    childAspectRatio: 1.1,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                  ),
-                  itemCount: orderProvider.tables.length,
-                  itemBuilder: (context, index) {
-                    final table = orderProvider.tables[index];
-                    final isOccupied = table.status == TableStatus.occupied;
-                    return InkWell(
-                      onTap: () async {
-                        Navigator.pop(sheetContext);
-                        await Future<void>.delayed(Duration.zero);
-                        if (!outerContext.mounted) return;
-                        await _openTableWithComandasIfNeeded(
-                          outerContext,
-                          table,
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                          border: Border.all(
-                            color: isOccupied
-                                ? AppColors.warning
-                                : AppColors.success,
-                            width: 1.5,
+              );
+            }
+
+            return SizedBox(
+              height: 420,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Selecione a Mesa',
+                            style: Theme.of(sheetContext)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                         ),
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.table_bar,
+                        IconButton(
+                          tooltip: 'Criar mesa',
+                          onPressed: creatingTable ? null : createTable,
+                          icon: creatingTable
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.add),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        childAspectRatio: 1.1,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                      ),
+                      itemCount: orderProvider.tables.length,
+                      itemBuilder: (context, index) {
+                        final table = orderProvider.tables[index];
+                        final isOccupied = table.status == TableStatus.occupied;
+                        return InkWell(
+                          onTap: () async {
+                            Navigator.pop(sheetContext);
+                            await Future<void>.delayed(Duration.zero);
+                            if (!outerContext.mounted) return;
+                            await _openTableWithComandasIfNeeded(
+                              outerContext,
+                              table,
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                              border: Border.all(
                                 color: isOccupied
                                     ? AppColors.warning
                                     : AppColors.success,
+                                width: 1.5,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Mesa ${table.number}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            ),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.table_bar,
+                                    color: isOccupied
+                                        ? AppColors.warning
+                                        : AppColors.success,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Mesa ${table.number}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -1060,7 +1251,7 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
               const SizedBox(height: 12),
               if (categories.isNotEmpty)
                 DropdownButtonFormField<String>(
-                  value: null,
+                  initialValue: null,
                   items: categories
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),

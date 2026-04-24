@@ -10,6 +10,7 @@ import '../../providers/order_provider.dart';
 import '../../providers/menu_provider.dart';
 import '../../utils/constants.dart';
 import '../../widgets/menu_item_card.dart';
+import '../../widgets/require_auth.dart';
 
 class TableOrderScreen extends StatefulWidget {
   final TableModel table;
@@ -31,14 +32,16 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
     super.initState();
     // Defer initialization to after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final menuProvider = context.read<MenuProvider>();
-      if (menuProvider.categories.isNotEmpty && _selectedCategory.isEmpty) {
-        setState(() {
-          _selectedCategory = menuProvider.categories.first;
-        });
-      }
+      context.read<MenuProvider>().refreshMenuFromBackend().then((_) {
+        if (!mounted) return;
+        final cats = context.read<MenuProvider>().categories;
+        if (_selectedCategory.isEmpty && cats.isNotEmpty) {
+          setState(() => _selectedCategory = cats.first);
+        }
+      });
 
       final orderProvider = context.read<OrderProvider>();
+      orderProvider.refreshOrdersForTableFromBackend(widget.table.number);
       final comandas = orderProvider.getComandasForTable(widget.table.number);
       if (comandas.isNotEmpty && _selectedComandaId == null) {
         setState(() {
@@ -116,7 +119,18 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
       createdAt: DateTime.now(),
     );
 
-    await orderProvider.addOrder(order);
+    try {
+      await orderProvider.addOrder(order);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
     if (!mounted) return;
 
@@ -127,7 +141,10 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
       ),
     );
 
-    Navigator.pop(context);
+    setState(() {
+      _cart.clear();
+      _specialInstructions.clear();
+    });
   }
 
   double get _total {
@@ -146,8 +163,10 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
     final orderProvider = context.watch<OrderProvider>();
     final tableOrders = orderProvider.getOrdersByTable(widget.table.number);
 
-    // Ensure we have a selected category
-    if (_selectedCategory.isEmpty && menuProvider.categories.isNotEmpty) {
+    // Ensure we have a valid selected category
+    if (menuProvider.categories.isNotEmpty &&
+        (_selectedCategory.isEmpty ||
+            !menuProvider.categories.contains(_selectedCategory))) {
       _selectedCategory = menuProvider.categories.first;
     }
 
@@ -162,7 +181,8 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
       _selectedComandaId = null;
     }
 
-    return Scaffold(
+    return RequireAuth(
+      child: Scaffold(
       appBar: AppBar(
         title: Text('Mesa ${widget.table.number}'),
         actions: [
@@ -227,7 +247,7 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     isExpanded: true,
-                    value: _selectedComandaId,
+                    initialValue: _selectedComandaId,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(
@@ -277,7 +297,7 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
               ),
             ),
             SizedBox(
-              height: 180,
+              height: 140,
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -356,12 +376,13 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
                             width: double.infinity,
                             child: OutlinedButton.icon(
                               onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(context);
                                 await orderProvider.updateOrderStatus(
                                   order.id,
                                   OrderStatus.delivered,
                                 );
                                 if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                messenger.showSnackBar(
                                   const SnackBar(
                                     content: Text(
                                       'Pedido marcado como entregue',
@@ -550,6 +571,7 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
               ),
             )
           : null,
+      ),
     );
   }
 
@@ -597,15 +619,29 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
 
     if (comandas.isEmpty) {
       // No comandas — finalize everything at once (legacy behavior)
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+
+      final tableOrders = orderProvider.getOrdersByTable(widget.table.number);
+      final awaitingPrepCount = tableOrders
+          .where((o) => o.status == OrderStatus.received)
+          .length;
+
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text('Finalizar cliente desta mesa?'),
-          content: const Text(
-            'Isso marcará os pedidos como entregues e liberará a mesa.',
+          title: Text(
+            awaitingPrepCount > 0
+                ? 'Finalizar mesmo com pedido aguardando preparo?'
+                : 'Finalizar cliente desta mesa?',
+          ),
+          content: Text(
+            awaitingPrepCount > 0
+                ? 'Atenção: há $awaitingPrepCount pedido(s) aguardando iniciar preparo.\n\nIsso marcará os pedidos como entregues e liberará a mesa.'
+                : 'Isso marcará os pedidos como entregues e liberará a mesa.',
           ),
           actions: [
             TextButton(
@@ -622,19 +658,20 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
         if (confirmed == true) {
           await orderProvider.finalizeCustomerAtTable(widget.table.number);
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             const SnackBar(
               content: Text('Mesa liberada e pedidos finalizados.'),
               backgroundColor: AppColors.success,
             ),
           );
-          Navigator.pop(context);
+          navigator.pop();
         }
       });
       return;
     }
 
     // Per-comanda finalization
+    var handledTableFreed = false;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -644,6 +681,9 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
       builder: (ctx) => _FinalizeSheet(
         tableNumber: widget.table.number,
         onTableFreed: () {
+          if (handledTableFreed) return;
+          handledTableFreed = true;
+
           Navigator.pop(ctx); // close sheet
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -652,7 +692,11 @@ class _TableOrderScreenState extends State<TableOrderScreen> {
                 backgroundColor: AppColors.success,
               ),
             );
-            Navigator.pop(context); // close table screen
+
+            final nav = Navigator.of(context);
+            if (nav.canPop()) {
+              nav.pop(); // close table screen
+            }
           }
         },
       ),
@@ -938,9 +982,30 @@ class _FinalizeSheet extends StatelessWidget {
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
-                                  title: Text('Finalizar "${comanda.name}"?'),
+                                  title: Text(
+                                    orders.any(
+                                          (o) =>
+                                              o.status == OrderStatus.received,
+                                        )
+                                        ? 'Finalizar mesmo com pedido aguardando preparo?'
+                                        : 'Finalizar "${comanda.name}"?',
+                                  ),
                                   content: Text(
-                                    'Total: R\$ ${total.toStringAsFixed(2)}\nOs pedidos desta comanda serão marcados como entregues.',
+                                    () {
+                                      final awaitingPrepCount = orders
+                                          .where(
+                                            (o) =>
+                                                o.status ==
+                                                OrderStatus.received,
+                                          )
+                                          .length;
+
+                                      final warning = awaitingPrepCount > 0
+                                          ? 'Atenção: há $awaitingPrepCount pedido(s) aguardando iniciar preparo.\n\n'
+                                          : '';
+
+                                      return '${warning}Total: R\$ ${total.toStringAsFixed(2)}\nOs pedidos desta comanda serão marcados como entregues.';
+                                    }(),
                                   ),
                                   actions: [
                                     TextButton(

@@ -30,12 +30,21 @@ class Message {
   }
 
   factory Message.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'] ?? json['_id'] ?? '';
+    final rawSenderId =
+        json['senderId'] ??
+        json['senderUserId'] ??
+        json['sender_user_id'] ??
+        '';
+    final rawContent = json['content'] ?? json['text'] ?? '';
+    final rawTimestamp = json['timestamp'] ?? json['createdAt'] ?? '';
+
     return Message(
-      id: json['id'] as String,
-      senderId: json['senderId'] as String,
-      senderName: json['senderName'] as String,
-      content: json['content'] as String,
-      timestamp: DateTime.parse(json['timestamp'] as String),
+      id: rawId.toString(),
+      senderId: rawSenderId.toString(),
+      senderName: (json['senderName'] ?? '').toString(),
+      content: rawContent.toString(),
+      timestamp: DateTime.tryParse(rawTimestamp.toString()) ?? DateTime.now(),
       relatedTableNumber: json['relatedTableNumber'] as int?,
       relatedOrderId: json['relatedOrderId'] as String?,
     );

@@ -13,6 +13,7 @@ class StorageService {
   static const String _usersBox = 'users';
   static const String _messagesBox = 'messages';
   static const String _tableFinalizationsBox = 'table_finalizations';
+  static const String _authBox = 'auth';
 
   static Future<void> init() async {
     await Hive.openBox(_ordersBox);
@@ -21,6 +22,7 @@ class StorageService {
     await Hive.openBox(_usersBox);
     await Hive.openBox(_messagesBox);
     await Hive.openBox(_tableFinalizationsBox);
+    await Hive.openBox(_authBox);
   }
 
   static Box get _orders => Hive.box(_ordersBox);
@@ -29,6 +31,7 @@ class StorageService {
   static Box get _users => Hive.box(_usersBox);
   static Box get _messages => Hive.box(_messagesBox);
   static Box get _tableFinalizations => Hive.box(_tableFinalizationsBox);
+  static Box get _auth => Hive.box(_authBox);
 
   // Orders
   static Future<void> saveOrder(Order order) async {
@@ -53,6 +56,17 @@ class StorageService {
     await _menu.put(item.id, item.toJson());
   }
 
+  static Future<void> clearMenuItems() async {
+    await _menu.clear();
+  }
+
+  static Future<void> replaceMenuItems(List<MenuItem> items) async {
+    await clearMenuItems();
+    for (final item in items) {
+      await saveMenuItem(item);
+    }
+  }
+
   static List<MenuItem> getMenuItems() {
     return _menu.values.map((json) {
       final map = (json as Map).map(
@@ -65,6 +79,10 @@ class StorageService {
   // Tables
   static Future<void> saveTable(TableModel table) async {
     await _tables.put(table.number, table.toJson());
+  }
+
+  static Future<void> deleteTable(int tableNumber) async {
+    await _tables.delete(tableNumber);
   }
 
   static List<TableModel> getTables() {
@@ -127,5 +145,36 @@ class StorageService {
     await _users.clear();
     await _messages.clear();
     await _tableFinalizations.clear();
+    await _auth.clear();
+  }
+
+  // Auth
+  static Future<void> saveAuthToken(String token) async {
+    await _auth.put('token', token);
+  }
+
+  static String? getAuthToken() {
+    final token = _auth.get('token');
+    return token is String ? token : null;
+  }
+
+  static Future<void> deleteAuthToken() async {
+    await _auth.delete('token');
+  }
+
+  static Future<void> saveCurrentAuthUser(User user) async {
+    await _auth.put('user', user.toJson());
+  }
+
+  static User? getCurrentAuthUser() {
+    final raw = _auth.get('user');
+    if (raw is! Map) return null;
+    final map = raw.map((key, value) => MapEntry(key.toString(), value));
+    return User.fromJson(map);
+  }
+
+  static Future<void> clearAuth() async {
+    await _auth.delete('token');
+    await _auth.delete('user');
   }
 }

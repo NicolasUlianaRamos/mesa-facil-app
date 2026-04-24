@@ -39,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Login realizado com sucesso!'),
@@ -48,8 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Usuário ou senha incorretos'),
+        SnackBar(
+          content: Text(auth.lastError ?? 'Falha ao fazer login'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -139,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextFormField(
                             controller: _usernameController,
                             decoration: InputDecoration(
-                              labelText: 'Usuário',
+                              labelText: 'Email',
                               prefixIcon: const Icon(Icons.person_outline),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -149,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Digite seu usuário';
+                                return 'Digite seu email';
                               }
                               return null;
                             },
@@ -233,41 +234,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           .slideY(begin: 0.2, end: 0),
 
                       const SizedBox(height: 24),
-
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.info.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.info_outline,
-                                  color: AppColors.info,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Usuários de Demonstração',
-                                  style: Theme.of(context).textTheme.titleSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.info,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _buildDemoUser('Garçom', 'garcom / 123'),
-                            _buildDemoUser('Cozinha', 'cozinha / 123'),
-                            _buildDemoUser('Admin', 'admin / 123'),
-                          ],
-                        ),
-                      ).animate().fadeIn(delay: 600.ms, duration: 400.ms),
                     ],
                   ),
                 ),
@@ -275,16 +241,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildDemoUser(String role, String credentials) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        '• $role: $credentials',
-        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
       ),
     );
   }
